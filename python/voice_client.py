@@ -90,19 +90,37 @@ class VoiceClient:
         # Note: 'default' uses the system default audio input
         # On Linux, you may need to use 'pulse' format
         # On macOS, use 'avfoundation' format
-        try:
-            # Try PulseAudio (Linux)
-            player = MediaPlayer('default', format='pulse')
-            self.pc.addTrack(player.audio)
-            logger.info("Using PulseAudio for microphone input")
-        except Exception:
+        audio_added = False
+        
+        # Try different audio formats based on platform
+        audio_formats = [
+            ('default', 'pulse'),      # PulseAudio (Linux)
+            ('default', 'alsa'),       # ALSA (Linux fallback)
+            ('default:0', 'avfoundation'),  # macOS
+            ('audio=default', 'dshow'),     # Windows
+        ]
+        
+        for device, fmt in audio_formats:
             try:
-                # Try ALSA (Linux fallback)
-                player = MediaPlayer('default', format='alsa')
-                self.pc.addTrack(player.audio)
-                logger.info("Using ALSA for microphone input")
-            except Exception:
-                logger.warning("Could not open microphone. Audio input disabled.")
+                player = MediaPlayer(device, format=fmt)
+                if player.audio:
+                    self.pc.addTrack(player.audio)
+                    logger.info(f"Using {fmt} for microphone input")
+                    audio_added = True
+                    break
+            except Exception as e:
+                logger.debug(f"Failed to open audio with {fmt}: {e}")
+                continue
+        
+        if not audio_added:
+            raise Exception(
+                "Could not open microphone. The ItanniX API requires audio input.\n"
+                "Please check:\n"
+                "  - A microphone is connected\n"
+                "  - Required system packages are installed (see README)\n"
+                "  - On Linux: PulseAudio or ALSA is running\n"
+                "  - On macOS: Terminal has microphone permission"
+            )
         
         # 5. Handle remote audio
         @self.pc.on('track')
