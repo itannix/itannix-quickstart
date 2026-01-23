@@ -96,7 +96,8 @@ class VoiceClient:
         audio_formats = [
             ('default', 'pulse'),      # PulseAudio (Linux)
             ('default', 'alsa'),       # ALSA (Linux fallback)
-            ('default:0', 'avfoundation'),  # macOS
+            (':0', 'avfoundation'),    # macOS (colon prefix = audio only)
+            (':default', 'avfoundation'),  # macOS alternate
             ('audio=default', 'dshow'),     # Windows
         ]
         
