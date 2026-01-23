@@ -176,7 +176,8 @@ class VoiceClient:
                 },
                 data=self.pc.localDescription.sdp
             ) as resp:
-                if resp.status != 200:
+                # Accept both 200 and 201 as success
+                if resp.status not in (200, 201):
                     error_text = await resp.text()
                     raise Exception(f'SDP exchange failed: {resp.status} - {error_text}')
                 answer_sdp = await resp.text()
