@@ -27,10 +27,11 @@ logger = logging.getLogger(__name__)
 class VoiceClient:
     """ItanniX Voice Client using WebRTC."""
     
-    def __init__(self, client_id: str, client_secret: str, server_url: str = 'https://api.itannix.com'):
+    def __init__(self, client_id: str, client_secret: str, server_url: str = 'https://api.itannix.com', audio_device: str = None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.server_url = server_url
+        self.audio_device = audio_device  # e.g., ':1' for second audio device on macOS
         self.pc = None
         self.data_channel = None
         self.session = None
@@ -89,29 +90,49 @@ class VoiceClient:
         # 4. Add audio track (microphone)
         # Note: 'default' uses the system default audio input
         # On Linux, you may need to use 'pulse' format
-        # On macOS, use 'avfoundation' format
+        # On macOS, use 'avfoundation' format with ':N' where N is device index
         audio_added = False
         
-        # Try different audio formats based on platform
-        audio_formats = [
-            ('default', 'pulse'),      # PulseAudio (Linux)
-            ('default', 'alsa'),       # ALSA (Linux fallback)
-            (':0', 'avfoundation'),    # macOS (colon prefix = audio only)
-            (':default', 'avfoundation'),  # macOS alternate
-            ('audio=default', 'dshow'),     # Windows
-        ]
-        
-        for device, fmt in audio_formats:
+        # If user specified a device, try it directly
+        if self.audio_device:
+            # Determine format based on device string
+            if self.audio_device.startswith(':'):
+                fmt = 'avfoundation'  # macOS
+            elif self.audio_device.startswith('audio='):
+                fmt = 'dshow'  # Windows
+            else:
+                fmt = 'pulse'  # Linux default
+            
             try:
-                player = MediaPlayer(device, format=fmt)
+                player = MediaPlayer(self.audio_device, format=fmt)
                 if player.audio:
                     self.pc.addTrack(player.audio)
-                    logger.info(f"Using {fmt} for microphone input")
+                    logger.info(f"Using {fmt} with device '{self.audio_device}'")
                     audio_added = True
-                    break
             except Exception as e:
-                logger.debug(f"Failed to open audio with {fmt}: {e}")
-                continue
+                raise Exception(f"Failed to open audio device '{self.audio_device}': {e}")
+        else:
+            # Try different audio formats based on platform
+            audio_formats = [
+                ('default', 'pulse'),      # PulseAudio (Linux)
+                ('default', 'alsa'),       # ALSA (Linux fallback)
+                (':0', 'avfoundation'),    # macOS device 0
+                (':1', 'avfoundation'),    # macOS device 1 (often built-in mic)
+                (':default', 'avfoundation'),  # macOS default
+                ('audio=default', 'dshow'),     # Windows
+            ]
+            
+            for device, fmt in audio_formats:
+                try:
+                    player = MediaPlayer(device, format=fmt)
+                    if player.audio:
+                        self.pc.addTrack(player.audio)
+                        logger.info(f"Using {fmt} with device '{device}'")
+                        audio_added = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Failed to open audio with {fmt} device '{device}': {e}")
+                    continue
         
         if not audio_added:
             raise Exception(
@@ -120,7 +141,8 @@ class VoiceClient:
                 "  - A microphone is connected\n"
                 "  - Required system packages are installed (see README)\n"
                 "  - On Linux: PulseAudio or ALSA is running\n"
-                "  - On macOS: Terminal has microphone permission"
+                "  - On macOS: Use --audio-device ':1' for built-in mic, ':0' for first device\n"
+                "    List devices with: ffmpeg -f avfoundation -list_devices true -i \"\""
             )
         
         # 5. Handle remote audio
@@ -270,11 +292,15 @@ class VoiceClient:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='ItanniX Voice Client')
+    parser = argparse.ArgumentParser(
+        description='ItanniX Voice Client',
+        epilog='List macOS audio devices: ffmpeg -f avfoundation -list_devices true -i ""'
+    )
     parser.add_argument('--client-id', required=True, help='Your Client ID from the dashboard')
     parser.add_argument('--client-secret', help='Your client secret (auto-generated if not provided)')
     parser.add_argument('--server-url', default='https://api.itannix.com', help='API server URL')
     parser.add_argument('--duration', type=int, default=60, help='Connection duration in seconds')
+    parser.add_argument('--audio-device', help='Audio device (macOS: ":0", ":1", etc. Linux: "default")')
     
     args = parser.parse_args()
     
@@ -284,7 +310,7 @@ async def main():
         logger.info(f"Generated client secret: {client_secret}")
         logger.info("Save this secret for future connections!")
     
-    client = VoiceClient(args.client_id, client_secret, args.server_url)
+    client = VoiceClient(args.client_id, client_secret, args.server_url, args.audio_device)
     
     try:
         await client.connect()
