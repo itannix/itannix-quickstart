@@ -201,33 +201,63 @@ class VoiceClient:
     async def _play_audio_track(self, track):
         """Play incoming audio track to speakers using sounddevice."""
         try:
-            # Open audio output stream
+            # Get default output device info
+            logger.info(f"Audio output device: {sd.query_devices(kind='output')['name']}")
+            
+            # Open audio output stream - opus typically uses 48kHz
             stream = sd.OutputStream(
                 samplerate=48000,
-                channels=2,
-                dtype='int16'
+                channels=1,  # Mono audio
+                dtype='int16',
+                blocksize=960  # 20ms at 48kHz
             )
             stream.start()
+            logger.info("Audio output stream started")
             
+            frame_count = 0
             while True:
                 try:
                     frame = await track.recv()
+                    frame_count += 1
+                    
                     # Convert audio frame to numpy array
                     audio_data = frame.to_ndarray()
-                    # Reshape if needed (aiortc returns interleaved samples)
-                    if audio_data.ndim == 1:
-                        audio_data = audio_data.reshape(-1, 2)
-                    stream.write(audio_data.astype(np.int16))
+                    
+                    # Log first few frames for debugging
+                    if frame_count <= 3:
+                        logger.info(f"Audio frame {frame_count}: shape={audio_data.shape}, dtype={audio_data.dtype}")
+                    
+                    # Handle different array shapes
+                    if audio_data.ndim == 2:
+                        # If stereo, take first channel (or mix)
+                        if audio_data.shape[0] == 2:
+                            audio_data = audio_data[0]  # Take left channel
+                        elif audio_data.shape[1] == 2:
+                            audio_data = audio_data[:, 0]  # Take left channel
+                    
+                    # Ensure correct dtype
+                    if audio_data.dtype != np.int16:
+                        if audio_data.dtype == np.float32 or audio_data.dtype == np.float64:
+                            audio_data = (audio_data * 32767).astype(np.int16)
+                        else:
+                            audio_data = audio_data.astype(np.int16)
+                    
+                    stream.write(audio_data)
                 except Exception as e:
-                    if "MediaStreamError" in str(type(e)):
-                        break  # Track ended
-                    logger.debug(f"Audio frame error: {e}")
+                    error_type = type(e).__name__
+                    if "MediaStreamError" in error_type or "ConnectionError" in error_type:
+                        logger.info("Audio track ended")
+                        break
+                    logger.warning(f"Audio frame error ({error_type}): {e}")
                     continue
             
             stream.stop()
             stream.close()
+            logger.info(f"Audio playback finished after {frame_count} frames")
         except Exception as e:
             logger.error(f"Audio playback error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _handle_message(self, message: dict):
         """Handle incoming messages from the data channel."""
