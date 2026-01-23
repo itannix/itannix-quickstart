@@ -204,12 +204,12 @@ class VoiceClient:
             # Get default output device info
             logger.info(f"Audio output device: {sd.query_devices(kind='output')['name']}")
             
-            # Open audio output stream - opus uses 48kHz stereo
+            # Open audio output stream - OpenAI Realtime API uses 24kHz
             stream = sd.OutputStream(
-                samplerate=48000,
-                channels=2,  # Stereo (Opus is 48000/2)
+                samplerate=24000,
+                channels=1,  # Mono audio
                 dtype='int16',
-                blocksize=960  # 20ms at 48kHz
+                blocksize=480  # 20ms at 24kHz
             )
             stream.start()
             logger.info("Audio output stream started")
@@ -227,20 +227,15 @@ class VoiceClient:
                     if frame_count <= 3:
                         logger.info(f"Audio frame {frame_count}: shape={audio_data.shape}, dtype={audio_data.dtype}")
                     
-                    # Handle different array shapes - need (samples, 2) for stereo output
+                    # Handle different array shapes - flatten to 1D for mono output
                     if audio_data.ndim == 2:
+                        # Shape is (channels, samples) - flatten it
                         if audio_data.shape[0] == 1:
-                            # Mono (1, samples) -> duplicate to stereo (samples, 2)
-                            audio_data = audio_data[0]
-                            audio_data = np.column_stack((audio_data, audio_data))
+                            audio_data = audio_data[0]  # (1, 1920) -> (1920,)
                         elif audio_data.shape[0] == 2:
-                            # Already stereo (2, samples) -> transpose to (samples, 2)
-                            audio_data = audio_data.T
+                            audio_data = audio_data[0]  # Take left channel from stereo
                         else:
-                            audio_data = audio_data.T
-                    elif audio_data.ndim == 1:
-                        # Mono 1D -> duplicate to stereo (samples, 2)
-                        audio_data = np.column_stack((audio_data, audio_data))
+                            audio_data = audio_data.flatten()
                     
                     # Ensure correct dtype
                     if audio_data.dtype != np.int16:
