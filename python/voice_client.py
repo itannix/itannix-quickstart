@@ -18,7 +18,15 @@ import logging
 import secrets
 import aiohttp
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaPlayer, MediaRecorder
+from aiortc.contrib.media import MediaPlayer, MediaRecorder, MediaBlackhole
+
+# Try to import audio playback library
+try:
+    import sounddevice as sd
+    import numpy as np
+    AUDIO_PLAYBACK_AVAILABLE = True
+except ImportError:
+    AUDIO_PLAYBACK_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -145,15 +153,17 @@ class VoiceClient:
                 "    List devices with: ffmpeg -f avfoundation -list_devices true -i \"\""
             )
         
-        # 5. Handle remote audio
+        # 5. Handle remote audio - play to speakers
+        self.audio_player_task = None
+        
         @self.pc.on('track')
         def on_track(track):
             if track.kind == 'audio':
-                logger.info("Received remote audio track")
-                # You can record or play the audio here
-                # Example: recorder = MediaRecorder('output.wav')
-                # recorder.addTrack(track)
-                # await recorder.start()
+                logger.info("Received remote audio track - playing to speakers")
+                if AUDIO_PLAYBACK_AVAILABLE:
+                    self.audio_player_task = asyncio.create_task(self._play_audio_track(track))
+                else:
+                    logger.warning("Audio playback not available. Install sounddevice: pip install sounddevice numpy")
         
         # 6. Create offer
         offer = await self.pc.createOffer()
@@ -187,6 +197,37 @@ class VoiceClient:
         await self.pc.setRemoteDescription(answer)
         
         logger.info("Connected to ItanniX!")
+    
+    async def _play_audio_track(self, track):
+        """Play incoming audio track to speakers using sounddevice."""
+        try:
+            # Open audio output stream
+            stream = sd.OutputStream(
+                samplerate=48000,
+                channels=2,
+                dtype='int16'
+            )
+            stream.start()
+            
+            while True:
+                try:
+                    frame = await track.recv()
+                    # Convert audio frame to numpy array
+                    audio_data = frame.to_ndarray()
+                    # Reshape if needed (aiortc returns interleaved samples)
+                    if audio_data.ndim == 1:
+                        audio_data = audio_data.reshape(-1, 2)
+                    stream.write(audio_data.astype(np.int16))
+                except Exception as e:
+                    if "MediaStreamError" in str(type(e)):
+                        break  # Track ended
+                    logger.debug(f"Audio frame error: {e}")
+                    continue
+            
+            stream.stop()
+            stream.close()
+        except Exception as e:
+            logger.error(f"Audio playback error: {e}")
     
     def _handle_message(self, message: dict):
         """Handle incoming messages from the data channel."""
@@ -285,6 +326,12 @@ class VoiceClient:
     
     async def disconnect(self):
         """Close the connection."""
+        if hasattr(self, 'audio_player_task') and self.audio_player_task:
+            self.audio_player_task.cancel()
+            try:
+                await self.audio_player_task
+            except asyncio.CancelledError:
+                pass
         if self.data_channel:
             self.data_channel.close()
         if self.pc:
