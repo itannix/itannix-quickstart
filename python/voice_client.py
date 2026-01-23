@@ -227,13 +227,15 @@ class VoiceClient:
                     if frame_count <= 3:
                         logger.info(f"Audio frame {frame_count}: shape={audio_data.shape}, dtype={audio_data.dtype}")
                     
-                    # Handle different array shapes
+                    # Handle different array shapes - flatten to 1D for mono output
                     if audio_data.ndim == 2:
-                        # If stereo, take first channel (or mix)
-                        if audio_data.shape[0] == 2:
-                            audio_data = audio_data[0]  # Take left channel
-                        elif audio_data.shape[1] == 2:
-                            audio_data = audio_data[:, 0]  # Take left channel
+                        # Shape is (channels, samples) - flatten it
+                        if audio_data.shape[0] == 1:
+                            audio_data = audio_data[0]  # (1, 1920) -> (1920,)
+                        elif audio_data.shape[0] == 2:
+                            audio_data = audio_data[0]  # Take left channel from stereo
+                        else:
+                            audio_data = audio_data.flatten()
                     
                     # Ensure correct dtype
                     if audio_data.dtype != np.int16:
