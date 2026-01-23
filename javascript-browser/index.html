@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ItanniX Voice Client</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .hint {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        button {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-connect {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-connect:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-disconnect {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-disconnect:hover:not(:disabled) {
+            background: #dc2626;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        .status.disconnected {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .status.connecting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .transcript-container {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .transcript-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .transcript-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+        }
+        .transcript-entry:last-child {
+            border-bottom: none;
+        }
+        .transcript-entry.user {
+            color: #1d4ed8;
+        }
+        .transcript-entry.assistant {
+            color: #047857;
+        }
+        .transcript-entry .label {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ItanniX Voice Client</h1>
+        <p class="subtitle">Real-time voice AI powered by WebRTC</p>
+        
+        <div class="form-group">
+            <label for="clientId">Client ID</label>
+            <input type="text" id="clientId" placeholder="e.g., d4f8e2a1-3b7c-4e9f-a5d6-1c2b3e4f5a6b">
+            <p class="hint">Your registered Client ID from the dashboard</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="clientSecret">Client Secret</label>
+            <input type="password" id="clientSecret" placeholder="Your device-generated secret">
+            <p class="hint">A random string (32+ chars). Generated automatically if empty.</p>
+        </div>
+        
+        <div class="button-group">
+            <button id="connectBtn" class="btn-connect">Connect</button>
+            <button id="disconnectBtn" class="btn-disconnect" disabled>Disconnect</button>
+        </div>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="transcript-container">
+            <div class="transcript-title">Conversation</div>
+            <div id="transcript"></div>
+        </div>
+    </div>
+
+    <script src="voice-client.js"></script>
+    <script>
+        let client = null;
+        
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+        const clientIdInput = document.getElementById('clientId');
+        const clientSecretInput = document.getElementById('clientSecret');
+        
+        // Generate a random secret if not provided
+        function generateSecret() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Add entry to transcript
+        function addTranscript(role, text) {
+            const entry = document.createElement('div');
+            entry.className = `transcript-entry ${role}`;
+            entry.innerHTML = `<span class="label">${role === 'user' ? 'You' : 'Assistant'}:</span> ${text}`;
+            transcriptEl.appendChild(entry);
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(status) {
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            statusEl.className = `status ${status}`;
+            
+            if (status === 'connected') {
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else if (status === 'disconnected') {
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+        
+        // Connect button handler
+        connectBtn.addEventListener('click', async () => {
+            const clientId = clientIdInput.value.trim();
+            let clientSecret = clientSecretInput.value.trim();
+            
+            if (!clientId) {
+                alert('Please enter a Client ID');
+                return;
+            }
+            
+            // Generate secret if empty
+            if (!clientSecret) {
+                clientSecret = generateSecret();
+                clientSecretInput.value = clientSecret;
+            }
+            
+            try {
+                client = new VoiceClient(clientId, clientSecret);
+                
+                client.onStatusChange = updateStatus;
+                
+                client.onTranscript = (text) => {
+                    addTranscript('user', text);
+                };
+                
+                client.onAssistantMessage = (text, isComplete) => {
+                    if (isComplete) {
+                        addTranscript('assistant', text);
+                    }
+                };
+                
+                client.onFunctionCall = (name, args, callId) => {
+                    console.log('Function call:', name, args);
+                    // Handle custom function calls here
+                    client.sendFunctionResult(callId, { success: true });
+                };
+                
+                await client.connect();
+            } catch (error) {
+                console.error('Connection failed:', error);
+                alert('Connection failed: ' + error.message);
+                updateStatus('disconnected');
+            }
+        });
+        
+        // Disconnect button handler
+        disconnectBtn.addEventListener('click', () => {
+            if (client) {
+                client.disconnect();
+                client = null;
+            }
+        });
+    </script>
+</body>
+</html>

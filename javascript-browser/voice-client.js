@@ -1,0 +1,260 @@
+/**
+ * ItanniX Voice Client
+ * A minimal WebRTC client for the ItanniX Realtime API
+ */
+class VoiceClient {
+  constructor(clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.serverUrl = serverUrl;
+    this.peerConnection = null;
+    this.dataChannel = null;
+    this.session = null;
+    this.remoteAudio = null;
+    this.onTranscript = null;
+    this.onAssistantMessage = null;
+    this.onFunctionCall = null;
+    this.onStatusChange = null;
+  }
+
+  async connect() {
+    this._updateStatus('connecting');
+
+    // 1. Create session
+    const sessionResponse = await fetch(`${this.serverUrl}/v1/realtime/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id': this.clientId,
+        'X-Client-Secret': this.clientSecret
+      },
+      body: JSON.stringify({
+        modalities: ['text', 'audio']
+      })
+    });
+
+    if (!sessionResponse.ok) {
+      throw new Error(`Session creation failed: ${sessionResponse.status}`);
+    }
+
+    this.session = await sessionResponse.json();
+    const { iceServers } = this.session;
+
+    // 2. Create peer connection
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: iceServers || [
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    });
+
+    // 3. Create data channel for messages
+    this.dataChannel = this.peerConnection.createDataChannel('messages', {
+      ordered: true
+    });
+
+    this.dataChannel.onopen = () => {
+      console.log('Data channel opened');
+      this._updateStatus('connected');
+    };
+
+    this.dataChannel.onclose = () => {
+      console.log('Data channel closed');
+      this._updateStatus('disconnected');
+    };
+
+    this.dataChannel.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      this._handleMessage(message);
+    };
+
+    // 4. Get user media (microphone)
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        sampleRate: 48000,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true
+      }
+    });
+
+    stream.getAudioTracks().forEach(track => {
+      this.peerConnection.addTrack(track, stream);
+    });
+
+    // 5. Handle remote audio
+    this.peerConnection.ontrack = (event) => {
+      const remoteStream = event.streams[0];
+      this.remoteAudio = new Audio();
+      this.remoteAudio.srcObject = remoteStream;
+      this.remoteAudio.autoplay = true;
+      this.remoteAudio.play().catch(e => console.warn('Audio autoplay blocked:', e));
+    };
+
+    // 6. Create and send offer
+    const offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(offer);
+
+    // Wait for ICE gathering to complete
+    await new Promise((resolve) => {
+      if (this.peerConnection.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        this.peerConnection.onicegatheringstatechange = () => {
+          if (this.peerConnection.iceGatheringState === 'complete') {
+            resolve();
+          }
+        };
+      }
+    });
+
+    // 7. Send SDP to server
+    const sdpResponse = await fetch(`${this.serverUrl}/v1/realtime`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/sdp',
+        'X-Client-Id': this.clientId,
+        'X-Client-Secret': this.clientSecret
+      },
+      body: this.peerConnection.localDescription.sdp
+    });
+
+    if (!sdpResponse.ok) {
+      throw new Error(`SDP exchange failed: ${sdpResponse.status}`);
+    }
+
+    // 8. Set remote description
+    const answerSdp = await sdpResponse.text();
+    await this.peerConnection.setRemoteDescription({
+      type: 'answer',
+      sdp: answerSdp
+    });
+
+    console.log('Connected to ItanniX!');
+  }
+
+  _handleMessage(message) {
+    // Handle user transcript
+    if (message.type === 'conversation.item.input_audio_transcription.completed') {
+      if (this.onTranscript) {
+        this.onTranscript(message.transcript);
+      }
+      return;
+    }
+
+    // Handle assistant transcript (streaming)
+    if (message.type === 'response.audio_transcript.delta') {
+      if (this.onAssistantMessage) {
+        this.onAssistantMessage(message.delta, false);
+      }
+      return;
+    }
+
+    // Handle assistant transcript (complete)
+    if (message.type === 'response.audio_transcript.done') {
+      if (this.onAssistantMessage) {
+        this.onAssistantMessage(message.transcript, true);
+      }
+      return;
+    }
+
+    // Handle function calls
+    if (message.type === 'response.output_item.done' && message.item?.type === 'function_call') {
+      const { call_id, name, arguments: args } = message.item;
+      const parsedArgs = JSON.parse(args || '{}');
+      
+      // Handle client-side functions
+      const result = this._handleLocalFunction(name, parsedArgs);
+      if (result !== null) {
+        this.sendFunctionResult(call_id, result);
+      } else if (this.onFunctionCall) {
+        // Let the app handle it
+        this.onFunctionCall(name, parsedArgs, call_id);
+      }
+    }
+  }
+
+  _handleLocalFunction(name, args) {
+    // Client-side volume/audio control functions
+    switch (name) {
+      case 'set_device_volume':
+        if (this.remoteAudio && args.volume_level !== undefined) {
+          const level = Math.max(0, Math.min(100, parseInt(args.volume_level)));
+          this.remoteAudio.volume = level / 100;
+          return { success: true, volume: level };
+        }
+        break;
+      
+      case 'adjust_device_volume':
+        if (this.remoteAudio && args.action) {
+          let newVolume = this.remoteAudio.volume;
+          if (args.action === 'increase') {
+            newVolume = Math.min(1.0, newVolume + 0.1);
+          } else if (args.action === 'decrease') {
+            newVolume = Math.max(0.0, newVolume - 0.1);
+          }
+          this.remoteAudio.volume = newVolume;
+          return { success: true, volume: Math.round(newVolume * 100) };
+        }
+        break;
+      
+      case 'quiet_device':
+        if (this.remoteAudio) {
+          this.remoteAudio.volume = 0;
+          return { success: true, volume: 0 };
+        }
+        break;
+      
+      case 'stop_audio':
+        if (this.remoteAudio && !this.remoteAudio.paused) {
+          this.remoteAudio.pause();
+          return { success: true, message: 'Audio stopped' };
+        }
+        return { success: true, message: 'No audio was playing' };
+    }
+    
+    return null; // Not a local function
+  }
+
+  sendFunctionResult(callId, result) {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.warn('Data channel not ready');
+      return;
+    }
+
+    this.dataChannel.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: JSON.stringify(result)
+      }
+    }));
+
+    // Trigger response generation
+    this.dataChannel.send(JSON.stringify({
+      type: 'response.create'
+    }));
+  }
+
+  _updateStatus(status) {
+    if (this.onStatusChange) {
+      this.onStatusChange(status);
+    }
+  }
+
+  disconnect() {
+    if (this.dataChannel) {
+      this.dataChannel.close();
+      this.dataChannel = null;
+    }
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    if (this.remoteAudio) {
+      this.remoteAudio.pause();
+      this.remoteAudio = null;
+    }
+    this._updateStatus('disconnected');
+  }
+}
