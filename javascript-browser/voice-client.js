@@ -3,7 +3,8 @@
  * A minimal WebRTC client for the ItanniX Realtime API
  */
 class VoiceClient {
-  constructor(clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
+  // constructor(clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
+  constructor(clientId, clientSecret, serverUrl = 'http://localhost:8000') {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.serverUrl = serverUrl;
@@ -34,7 +35,8 @@ class VoiceClient {
     });
 
     if (!sessionResponse.ok) {
-      throw new Error(`Session creation failed: ${sessionResponse.status}`);
+      const error = await this._parseError(sessionResponse, 'Session creation failed');
+      throw error;
     }
 
     this.session = await sessionResponse.json();
@@ -53,12 +55,20 @@ class VoiceClient {
     });
 
     this.dataChannel.onopen = () => {
-      console.log('Data channel opened');
       this._updateStatus('connected');
+      
+      // Enable input audio transcription via session.update
+      this.dataChannel.send(JSON.stringify({
+        type: 'session.update',
+        session: {
+          input_audio_transcription: {
+            model: 'gpt-4o-mini-transcribe'
+          }
+        }
+      }));
     };
 
     this.dataChannel.onclose = () => {
-      console.log('Data channel closed');
       this._updateStatus('disconnected');
     };
 
@@ -87,7 +97,7 @@ class VoiceClient {
       this.remoteAudio = new Audio();
       this.remoteAudio.srcObject = remoteStream;
       this.remoteAudio.autoplay = true;
-      this.remoteAudio.play().catch(e => console.warn('Audio autoplay blocked:', e));
+      this.remoteAudio.play().catch(() => {});
     };
 
     // 6. Create and send offer
@@ -119,7 +129,8 @@ class VoiceClient {
     });
 
     if (!sdpResponse.ok) {
-      throw new Error(`SDP exchange failed: ${sdpResponse.status}`);
+      const error = await this._parseError(sdpResponse, 'Connection failed');
+      throw error;
     }
 
     // 8. Set remote description
@@ -128,12 +139,10 @@ class VoiceClient {
       type: 'answer',
       sdp: answerSdp
     });
-
-    console.log('Connected to ItanniX!');
   }
 
   _handleMessage(message) {
-    // Handle user transcript
+    // Handle user transcript (completed)
     if (message.type === 'conversation.item.input_audio_transcription.completed') {
       if (this.onTranscript) {
         this.onTranscript(message.transcript);
@@ -174,7 +183,6 @@ class VoiceClient {
   }
 
   _handleLocalFunction(name, args) {
-    // Client-side volume/audio control functions
     switch (name) {
       case 'set_device_volume':
         if (this.remoteAudio && args.volume_level !== undefined) {
@@ -212,12 +220,11 @@ class VoiceClient {
         return { success: true, message: 'No audio was playing' };
     }
     
-    return null; // Not a local function
+    return null;
   }
 
   sendFunctionResult(callId, result) {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.warn('Data channel not ready');
       return;
     }
 
@@ -234,6 +241,31 @@ class VoiceClient {
     this.dataChannel.send(JSON.stringify({
       type: 'response.create'
     }));
+  }
+
+  async _parseError(response, fallbackMessage) {
+    let message = `${fallbackMessage} (${response.status})`;
+    let hint = null;
+    
+    try {
+      const errorData = await response.json();
+      if (errorData.message) {
+        message = errorData.message;
+      }
+      if (errorData.hint) {
+        hint = errorData.hint;
+      }
+    } catch {
+      // Response wasn't JSON, use status text
+      if (response.statusText) {
+        message = `${fallbackMessage}: ${response.statusText}`;
+      }
+    }
+    
+    const error = new Error(message);
+    error.status = response.status;
+    error.hint = hint;
+    return error;
   }
 
   _updateStatus(status) {

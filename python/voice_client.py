@@ -208,7 +208,7 @@ class VoiceClient:
             # Opus in SDP shows 48kHz, but frame has 1920 samples
             # 1920 samples @ 48kHz = 40ms per frame
             stream = sd.OutputStream(
-                samplerate=48000,
+                samplerate=24000, #48000,
                 channels=1,  # Mono audio
                 dtype='int16',
                 latency='low'  # Use low latency instead of fixed blocksize
