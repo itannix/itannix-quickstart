@@ -11,6 +11,7 @@ class VoiceClient {
     this.peerConnection = null;
     this.dataChannel = null;
     this.session = null;
+    this.localStream = null;
     this.remoteAudio = null;
     this.onTranscript = null;
     this.onAssistantMessage = null;
@@ -78,7 +79,7 @@ class VoiceClient {
     };
 
     // 4. Get user media (microphone)
-    const stream = await navigator.mediaDevices.getUserMedia({
+    this.localStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         sampleRate: 48000,
         channelCount: 1,
@@ -87,8 +88,8 @@ class VoiceClient {
       }
     });
 
-    stream.getAudioTracks().forEach(track => {
-      this.peerConnection.addTrack(track, stream);
+    this.localStream.getAudioTracks().forEach(track => {
+      this.peerConnection.addTrack(track, this.localStream);
     });
 
     // 5. Handle remote audio
@@ -282,6 +283,10 @@ class VoiceClient {
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
+    }
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream = null;
     }
     if (this.remoteAudio) {
       this.remoteAudio.pause();

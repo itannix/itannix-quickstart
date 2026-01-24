@@ -30,7 +30,7 @@ Choose an example below and follow its README:
 | Example | Description |
 |---------|-------------|
 | [JavaScript Browser](./javascript-browser/) | Browser-based client with WebRTC, no build step required |
-| [Python](./python/) | Python client using aiortc for WebRTC support |
+| [Svelte](./svelte/) | Svelte app using the `@itannix/svelte` SDK |
 
 ## Authentication
 
