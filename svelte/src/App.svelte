@@ -7,7 +7,7 @@
   let status = $state('disconnected');
   let clientId = $state('');
   let clientSecret = $state('');
-  let serverUrl = $state('http://localhost:8000');
+  let serverUrl = $state('https://staging-api.itannix.com');
   let messages = $state([]);
   let error = $state(null);
 
