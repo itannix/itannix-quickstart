@@ -110,7 +110,7 @@ function generateSecret(): string {
 
 const clientId = ref('');
 const clientSecret = ref('');
-const serverUrl = ref('http://localhost:8000');
+const serverUrl = ref('https://api.itannix.com');
 const messages = ref<Message[]>([]);
 const error = ref<ErrorState | null>(null);
 

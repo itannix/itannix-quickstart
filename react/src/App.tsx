@@ -21,7 +21,7 @@ function generateSecret(): string {
 function App() {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
-  const [serverUrl] = useState('http://localhost:8000');
+  const [serverUrl] = useState('https://api.itannix.com');
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<ErrorState | null>(null);
 
