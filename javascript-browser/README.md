@@ -9,19 +9,19 @@ A minimal browser-based voice client for ItanniX using WebRTC.
 
 ## Quick Start
 
-1. **Start a local server**
+1. **Serve the files**
 
-   Due to browser security (CORS), you need to serve the files through an HTTP server:
+   Due to browser security, you need to serve the files through an HTTP server:
 
    ```bash
-   # Using Python (recommended)
+   # Using Python
    python3 -m http.server 8080
    
    # Or using Node.js
    npx serve -p 8080
    ```
 
-   Then open http://localhost:8080/index.html in your browser.
+   Then open http://127.0.0.1:8080/index.html in your browser.
 
 2. **Enter your credentials**
 
@@ -85,8 +85,8 @@ The VoiceClient automatically handles these function calls locally:
 ## Troubleshooting
 
 **CORS error / "Failed to fetch"?**
-- Don't open `index.html` directly (file:// protocol causes CORS issues)
-- Use a local HTTP server as described in Quick Start
+- Don't open `index.html` directly (file:// protocol won't work)
+- Serve the files through an HTTP server as described in Quick Start
 
 **Microphone not working?**
 - Make sure you allowed microphone permissions

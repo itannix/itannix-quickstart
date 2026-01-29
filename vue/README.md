@@ -15,7 +15,7 @@ A Vue example using the `@itannix/vue` SDK for voice interactions.
    npm install
    ```
 
-2. **Start the dev server**
+2. **Run the app**
 
    ```bash
    npm run dev
@@ -23,7 +23,7 @@ A Vue example using the `@itannix/vue` SDK for voice interactions.
 
 3. **Open in browser**
 
-   Navigate to http://localhost:5173
+   Navigate to the URL shown in the terminal
 
 4. **Enter your Client ID and connect**
 

@@ -36,7 +36,7 @@ cd react  # or svelte, vue, javascript-browser
 # Install dependencies (not needed for javascript-browser)
 npm install
 
-# Start the dev server
+# Run the app
 npm run dev
 ```
 

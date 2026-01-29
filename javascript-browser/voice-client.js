@@ -3,8 +3,7 @@
  * A minimal WebRTC client for the ItanniX Realtime API
  */
 class VoiceClient {
-  // constructor(clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
-  constructor(clientId, clientSecret, serverUrl = 'http://localhost:8000') {
+  constructor(clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.serverUrl = serverUrl;
