@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Client | ItanniX</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #2563eb;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-subtle: rgba(0, 0, 0, 0.08);
+            --border-accent: rgba(59, 130, 246, 0.3);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        
+        .logo {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .brand {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        /* Container */
+        .container {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            padding: 32px;
+            width: 100%;
+            max-width: 480px;
+        }
+        
+        h1 {
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            transition: all 0.2s ease;
+        }
+        
+        input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .hint {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-connect {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-connect:hover:not(:disabled) {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-disconnect {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+        }
+        
+        .btn-disconnect:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #dc2626;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Status */
+        .status {
+            text-align: center;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status.disconnected {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        
+        .status.disconnected::before {
+            background: #ef4444;
+        }
+        
+        .status.connecting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status.connecting::before {
+            background: #f59e0b;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .status.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status.connected::before {
+            background: #10b981;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        /* Transcript */
+        .transcript-container {
+            margin-top: 24px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .transcript-header {
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-subtle);
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        
+        .transcript-content {
+            padding: 16px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        
+        .transcript-empty {
+            color: var(--text-muted);
+            font-size: 14px;
+            text-align: center;
+            padding: 24px 0;
+        }
+        
+        .transcript-entry {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .transcript-entry:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .transcript-entry:first-child {
+            padding-top: 0;
+        }
+        
+        .transcript-entry.user .label {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+        
+        .transcript-entry.user .text {
+            color: var(--text-primary);
+        }
+        
+        .transcript-entry.assistant .label {
+            color: #059669;
+            font-weight: 600;
+        }
+        
+        .transcript-entry.assistant .text {
+            color: var(--text-secondary);
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Error display */
+        .error-container {
+            margin-top: 16px;
+            padding: 16px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            display: none;
+        }
+        
+        .error-container.visible {
+            display: block;
+        }
+        
+        .error-title {
+            color: #991b1b;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .error-message {
+            color: #b91c1c;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .error-hint {
+            color: #7f1d1d;
+            font-size: 13px;
+            background: #fee2e2;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        
+        .error-dismiss {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .error-dismiss:hover {
+            background: #fecaca;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="./logo.svg" class="logo" alt="ItanniX Logo" />
+        <span class="brand">ItanniX</span>
+    </div>
+
+    <div class="container">
+        <h1>Voice Client</h1>
+        <p class="subtitle">Real-time voice AI powered by WebRTC</p>
+        
+        <div class="form-group">
+            <label for="workspaceKey">Workspace Key</label>
+            <input type="password" id="workspaceKey" placeholder="Your workspace API key">
+            <p class="hint">From Settings → Workspace in the dashboard</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="clientId">Client ID</label>
+            <input type="text" id="clientId" placeholder="e.g., d4f8e2a1-3b7c-4e9f-a5d6-1c2b3e4f5a6b">
+            <p class="hint">Your registered Client ID from the dashboard</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="clientSecret">Client Secret</label>
+            <input type="password" id="clientSecret" placeholder="Leave empty to auto-generate">
+            <p class="hint">A random string (32+ chars). Generated automatically if empty.</p>
+        </div>
+        
+        <div class="button-group">
+            <button id="connectBtn" class="btn-connect">Connect</button>
+            <button id="disconnectBtn" class="btn-disconnect" disabled>Disconnect</button>
+        </div>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div id="errorContainer" class="error-container">
+            <div class="error-title">Connection Error</div>
+            <div id="errorMessage" class="error-message"></div>
+            <div id="errorHint" class="error-hint"></div>
+            <button class="error-dismiss" onclick="dismissError()">Dismiss</button>
+        </div>
+        
+        <div class="transcript-container">
+            <div class="transcript-header">Conversation</div>
+            <div id="transcript" class="transcript-content">
+                <div class="transcript-empty">Start speaking after connecting...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <a href="https://itannix.com/docs" target="_blank">Documentation</a> · 
+        <a href="https://app.itannix.com" target="_blank">Dashboard</a>
+    </div>
+
+    <script src="voice-client.js"></script>
+    <script>
+        let client = null;
+        
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+        const workspaceKeyInput = document.getElementById('workspaceKey');
+        const clientIdInput = document.getElementById('clientId');
+        const clientSecretInput = document.getElementById('clientSecret');
+        
+        function generateSecret() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        let messages = [];
+        
+        function finalizeStreamingMessage() {
+            const idx = messages.findLastIndex(m => m.role === 'assistant' && m.streaming);
+            if (idx !== -1) {
+                messages[idx] = { role: 'assistant', text: messages[idx].text };
+            }
+        }
+        
+        function escapeHtml(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        
+        function renderTranscript() {
+            if (messages.length === 0) {
+                transcriptEl.innerHTML = '<div class="transcript-empty">Start speaking after connecting...</div>';
+                return;
+            }
+            transcriptEl.innerHTML = messages.map(msg =>
+                `<div class="transcript-entry ${msg.role}">
+                    <span class="label">${msg.role === 'user' ? 'You' : 'Assistant'}:</span>
+                    <span class="text">${escapeHtml(msg.text)}</span>
+                </div>`
+            ).join('');
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        }
+        
+        function updateStatus(status) {
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            statusEl.className = `status ${status}`;
+            
+            if (status === 'connected') {
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                dismissError();
+            } else if (status === 'disconnected') {
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+        
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorHint = document.getElementById('errorHint');
+        
+        function showError(message, hint) {
+            errorMessage.textContent = message;
+            if (hint) {
+                errorHint.textContent = hint;
+                errorHint.style.display = 'block';
+            } else {
+                errorHint.style.display = 'none';
+            }
+            errorContainer.classList.add('visible');
+        }
+        
+        function dismissError() {
+            errorContainer.classList.remove('visible');
+        }
+        
+        connectBtn.addEventListener('click', async () => {
+            const workspaceKey = workspaceKeyInput.value.trim();
+            const clientId = clientIdInput.value.trim();
+            let clientSecret = clientSecretInput.value.trim();
+            
+            if (!workspaceKey) {
+                alert('Please enter a Workspace Key');
+                return;
+            }
+            
+            if (!clientId) {
+                alert('Please enter a Client ID');
+                return;
+            }
+            
+            if (!clientSecret) {
+                clientSecret = generateSecret();
+                clientSecretInput.value = clientSecret;
+            }
+            
+            try {
+                client = new VoiceClient(workspaceKey, clientId, clientSecret);
+                
+                client.onStatusChange = updateStatus;
+                
+                client.onTranscript = (text) => {
+                    finalizeStreamingMessage();
+                    messages.push({ role: 'user', text });
+                    renderTranscript();
+                };
+                
+                client.onAssistantMessage = (text, isComplete) => {
+                    if (isComplete) {
+                        const idx = messages.findLastIndex(m => m.role === 'assistant' && m.streaming);
+                        if (idx !== -1) {
+                            messages[idx] = { role: 'assistant', text };
+                        } else {
+                            messages.push({ role: 'assistant', text });
+                        }
+                    } else {
+                        const last = messages.at(-1);
+                        if (last?.role === 'assistant' && last.streaming) {
+                            last.text += text;
+                        } else {
+                            finalizeStreamingMessage();
+                            messages.push({ role: 'assistant', text, streaming: true });
+                        }
+                    }
+                    renderTranscript();
+                };
+                
+                client.onFunctionCall = (name, args, callId) => {
+                    console.log('Function call:', name, args);
+                    client.sendFunctionResult(callId, { success: true });
+                };
+                
+                await client.connect();
+            } catch (error) {
+                showError(error.message, error.hint);
+                updateStatus('disconnected');
+            }
+        });
+        
+        disconnectBtn.addEventListener('click', () => {
+            if (client) {
+                client.disconnect();
+                client = null;
+            }
+        });
+    </script>
+</body>
+</html>
