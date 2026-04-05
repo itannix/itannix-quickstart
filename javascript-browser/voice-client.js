@@ -106,17 +106,23 @@ class VoiceClient {
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
 
-    // Wait for ICE gathering to complete
+    // Wait for ICE gathering (with timeout to avoid Chrome's slow ~40s timer)
     await new Promise((resolve) => {
       if (this.peerConnection.iceGatheringState === 'complete') {
         resolve();
-      } else {
-        this.peerConnection.onicegatheringstatechange = () => {
-          if (this.peerConnection.iceGatheringState === 'complete') {
-            resolve();
-          }
-        };
+        return;
       }
+
+      const timeout = setTimeout(() => {
+        resolve();
+      }, 5000);
+
+      this.peerConnection.onicegatheringstatechange = () => {
+        if (this.peerConnection.iceGatheringState === 'complete') {
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
     });
 
     // 7. Send SDP to server
