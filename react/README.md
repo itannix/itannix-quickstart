@@ -5,7 +5,7 @@ A React example using the `@itannix/react` SDK for voice interactions.
 ## Prerequisites
 
 - Node.js 18+
-- A workspace API key and registered Client ID from the [ItanniX Dashboard](https://app.itannix.com)
+- A workspace API key and registered Client ID from the [Itannix Dashboard](https://app.itannix.com)
 
 ## Quick Start
 

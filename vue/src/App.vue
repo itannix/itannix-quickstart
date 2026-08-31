@@ -2,8 +2,8 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   
   <div class="header">
-    <img :src="logoUrl" class="logo" alt="ItanniX Logo" />
-    <span class="brand">ItanniX</span>
+    <img :src="logoUrl" class="logo" alt="Itannix Logo" />
+    <span class="brand">Itannix</span>
     <span class="vue-badge">Vue</span>
   </div>
 

@@ -1,11 +1,11 @@
 # JavaScript Browser Example
 
-A minimal browser-based voice client for ItanniX using WebRTC.
+A minimal browser-based voice client for Itannix using WebRTC.
 
 ## Prerequisites
 
 - A modern browser (Chrome, Firefox, Edge, Safari)
-- A workspace API key and registered Client ID from the [ItanniX Dashboard](https://app.itannix.com)
+- A workspace API key and registered Client ID from the [Itannix Dashboard](https://app.itannix.com)
 
 ## Quick Start
 

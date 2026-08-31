@@ -1,6 +1,6 @@
 /**
- * ItanniX Voice Client
- * A minimal WebRTC client for the ItanniX Realtime API
+ * Itannix Voice Client
+ * A minimal WebRTC client for the Itannix Realtime API
  */
 class VoiceClient {
   constructor(workspaceKey, clientId, clientSecret, serverUrl = 'https://api.itannix.com') {
@@ -58,16 +58,9 @@ class VoiceClient {
 
     this.dataChannel.onopen = () => {
       this._updateStatus('connected');
-      
-      // Enable input audio transcription via session.update
-      this.dataChannel.send(JSON.stringify({
-        type: 'session.update',
-        session: {
-          input_audio_transcription: {
-            model: 'gpt-4o-mini-transcribe'
-          }
-        }
-      }));
+      // Input audio transcription is configured server-side when the session
+      // is created (the beta-style session.update payload is rejected by the
+      // GA Realtime API).
     };
 
     this.dataChannel.onclose = () => {
@@ -160,7 +153,12 @@ class VoiceClient {
     }
 
     // Handle assistant transcript (streaming)
-    if (message.type === 'response.audio_transcript.delta') {
+    // (GA Realtime API renamed response.audio_transcript.* to
+    // response.output_audio_transcript.*; custom_pipeline still emits the old names)
+    if (
+      message.type === 'response.audio_transcript.delta' ||
+      message.type === 'response.output_audio_transcript.delta'
+    ) {
       if (this.onAssistantMessage) {
         this.onAssistantMessage(message.delta, false);
       }
@@ -168,7 +166,10 @@ class VoiceClient {
     }
 
     // Handle assistant transcript (complete)
-    if (message.type === 'response.audio_transcript.done') {
+    if (
+      message.type === 'response.audio_transcript.done' ||
+      message.type === 'response.output_audio_transcript.done'
+    ) {
       if (this.onAssistantMessage) {
         this.onAssistantMessage(message.transcript, true);
       }

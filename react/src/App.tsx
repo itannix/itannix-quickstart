@@ -109,8 +109,8 @@ function App() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       
       <div className="header">
-        <img src={logo} className="logo" alt="ItanniX Logo" />
-        <span className="brand">ItanniX</span>
+        <img src={logo} className="logo" alt="Itannix Logo" />
+        <span className="brand">Itannix</span>
         <span className="react-badge">React</span>
       </div>
 

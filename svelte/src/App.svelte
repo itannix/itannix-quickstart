@@ -123,8 +123,8 @@
 />
 
 <div class="header">
-  <img src={logoUrl} class="logo" alt="ItanniX Logo" />
-  <span class="brand">ItanniX</span>
+  <img src={logoUrl} class="logo" alt="Itannix Logo" />
+  <span class="brand">Itannix</span>
   <span class="svelte-badge">Svelte</span>
 </div>
 

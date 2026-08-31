@@ -1,6 +1,6 @@
-# ItanniX Quickstart Examples
+# Itannix Quickstart Examples
 
-Quickstart examples for integrating with the [ItanniX](https://itannix.com) voice AI platform.
+Quickstart examples for integrating with the [Itannix](https://itannix.com) voice AI platform.
 
 ## Examples
 
@@ -43,9 +43,9 @@ npm run dev
 
 Enter your Workspace Key, Client ID, and Secret in the app, then click Connect to start a voice conversation.
 
-## What is ItanniX?
+## What is Itannix?
 
-ItanniX provides a real-time voice AI API that lets you add conversational AI assistants to any application.
+Itannix provides a real-time voice AI API that lets you add conversational AI assistants to any application.
 
 **Features:**
 - Real-time voice conversations via WebRTC
